@@ -1,0 +1,57 @@
+plugins {
+    id 'java-library'
+    id 'maven-publish'
+    id 'checkstyle'
+}
+
+sourceCompatibility = 1.8
+
+group 'com.steatoda'
+version '1.0.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+
+    implementation		'org.slf4j:slf4j-api:1.7.30',
+                        'ch.qos.logback:logback-core:1.2.3',
+                        'ch.qos.logback:logback-classic:1.2.3',
+                        'javax:javaee-api:8.0.1',
+                        'com.google.guava:guava:30.1.1-jre',
+                        'com.steatoda:commons-sql:latest.integration',
+                        'com.steatoda:commons-fields:latest.integration'
+                        //'org.apache.commons:commons-lang3:3.9',
+                        //'org.apache.commons:commons-text:1.9'
+
+    testImplementation	'junit:junit:4.13.2'
+
+}
+
+java {
+    withJavadocJar()
+    withSourcesJar()
+}
+
+jar {
+    manifest {
+        attributes (
+                'Implementation-Title': project.name,
+                'Implementation-Version': project.version
+        )
+    }
+}
+
+artifacts {
+    archives jar
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+        }
+    }
+}
