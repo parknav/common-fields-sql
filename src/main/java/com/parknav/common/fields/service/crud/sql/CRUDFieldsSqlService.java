@@ -232,7 +232,7 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 
 	}
 
-	protected abstract Connection getConnection();
+	protected abstract Connection getConnection() throws SQLException;
 	protected abstract List<String> getDQLColumns(Collection<F> fields);
 	protected abstract List<DMLColumn> getDMLColumns(C entity);
 	protected abstract String getColumn(F field);
