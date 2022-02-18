@@ -10,7 +10,7 @@ plugins {
 sourceCompatibility = JavaVersion.VERSION_11
 targetCompatibility = JavaVersion.VERSION_11
 
-group 'com.steatoda'
+group 'com.parknav'
 version '1.0.0-SNAPSHOT'
 
 idea {
@@ -21,6 +21,9 @@ idea {
 
 repositories {
 	mavenLocal()
+	maven {
+		url 'gcs://parknav-build-repo'
+	}
     mavenCentral()
 }
 
@@ -29,8 +32,8 @@ dependencies {
 	implementation 'org.slf4j:slf4j-api:1.7.35'
 	implementation 'javax:javaee-api:8.0.1'
 	implementation 'com.google.guava:guava:31.0.1-jre'
-	implementation 'com.steatoda:commons-sql:latest.integration'
-	implementation 'com.steatoda:commons-fields:latest.integration'
+	implementation 'com.parknav:common-sql:1.1.1'	// latest.integration
+	implementation 'com.parknav:common-fields:1.1.0'	// latest.integration
 
 }
 
@@ -63,4 +66,9 @@ publishing {
             from components.java
         }
     }
+	repositories {
+		maven {
+			url = 'gcs://parknav-build-repo'
+		}
+	}
 }

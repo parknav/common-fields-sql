@@ -1,18 +1,18 @@
-package com.steatoda.commons.fields.service.crud.sql;
+package com.parknav.common.fields.service.crud.sql;
 
 import com.google.common.collect.Sets;
-import com.steatoda.commons.fields.FieldEnum;
-import com.steatoda.commons.fields.FieldGraph;
-import com.steatoda.commons.fields.FieldUnavailableException;
-import com.steatoda.commons.fields.HasEntityFields;
-import com.steatoda.commons.fields.service.crud.CRUDException;
-import com.steatoda.commons.fields.service.crud.CRUDFieldsService;
-import com.steatoda.commons.sql.DMLColumn;
-import com.steatoda.commons.sql.statement.DeleteStatement;
-import com.steatoda.commons.sql.statement.InsertStatement;
-import com.steatoda.commons.sql.statement.SelectStatement;
-import com.steatoda.commons.sql.statement.UpdateStatement;
-import com.steatoda.commons.sql.where.WhereTerm;
+import com.parknav.common.fields.FieldEnum;
+import com.parknav.common.fields.FieldGraph;
+import com.parknav.common.fields.FieldUnavailableException;
+import com.parknav.common.fields.HasEntityFields;
+import com.parknav.common.fields.service.crud.CRUDException;
+import com.parknav.common.fields.service.crud.CRUDFieldsService;
+import com.parknav.common.sql.DMLColumn;
+import com.parknav.common.sql.statement.DeleteStatement;
+import com.parknav.common.sql.statement.InsertStatement;
+import com.parknav.common.sql.statement.SelectStatement;
+import com.parknav.common.sql.statement.UpdateStatement;
+import com.parknav.common.sql.where.WhereTerm;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,7 +20,6 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -28,6 +27,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>, F extends Enum<F> & FieldEnum, S> implements CRUDFieldsService<I, C, F, S> {
 
@@ -50,7 +51,7 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 			.build(getConnection())
 		) {
 			try (ResultSet resultSet = statement.executeQuery()) {
-				return resultSet.next() ? readResultSet(resultSet, graph) : null;
+				return resultSet.next() ? resolveResultSet(resultSet, graph) : null;
 			}
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to find entity with id " + id, e);
@@ -164,9 +165,7 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 	}
 
 	@Override
-	public List<C> getAllFieldValues(S selector, Set<F> fields) {
-
-		List<C> entites = new ArrayList<>();
+	public Stream<C> queryAllFieldValues(S selector, Set<F> fields) {
 
 		List<String> distinctOnColumns = fields.stream().map(this::getColumn).filter(Objects::nonNull).collect(Collectors.toList());
 		if (distinctOnColumns.isEmpty())
@@ -180,19 +179,10 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 			selectStatement.addWhereTerms(getSelectorWhereTerm(selector));
 
 		try (PreparedStatement statement = selectStatement.build(getConnection())) {
-			try (ResultSet resultSet = statement.executeQuery()) {
-				FieldGraph<F> graph = FieldGraph.of(fields);
-				while (resultSet.next()) {
-					C entity = readResultSet(resultSet, graph);
-					entity.setId(null);	// not needed and it doesn't make sense anyway...
-					entites.add(entity);
-				}
-			}
+			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, FieldGraph.of(fields)), false);
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to list all values for fields " + fields, e);
 		}
-
-		return entites;
 
 	}
 
@@ -216,36 +206,29 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 	}
 
 	@Override
-	public List<C> list(S selector, FieldGraph<F> graph) {
+	public Stream<C> query(S selector, FieldGraph<F> graph) {
 
-		return doList(buildListStatement(selector, graph), graph);
+		return doQuery(buildQueryStatement(selector, graph), graph);
 
 	}
 
-	protected SelectStatement buildListStatement(S selector, FieldGraph<F> graph) {
-		return buildListStatement(selector, graph, SelectStatement::new);
+	protected SelectStatement buildQueryStatement(S selector, FieldGraph<F> graph) {
+		return buildQueryStatement(selector, graph, SelectStatement::new);
 	}
 
-	protected SelectStatement buildListStatement(S selector, FieldGraph<F> graph, Function<String, SelectStatement> selectStatementBuilder) {
+	protected SelectStatement buildQueryStatement(S selector, FieldGraph<F> graph, Function<String, SelectStatement> selectStatementBuilder) {
 		return selectStatementBuilder.apply(tableName)
 			.addTableDQLColumns(getDQLColumns(graph), this::decorateDQLColumn)
 			.addWhereTerms(getSelectorWhereTerm(selector));
 	}
 
-	protected List<C> doList(SelectStatement select, FieldGraph<F> graph) {
-
-		List<C> entites = new ArrayList<>();
+	protected Stream<C> doQuery(SelectStatement select, FieldGraph<F> graph) {
 
 		try (PreparedStatement statement = select.build(getConnection())) {
-			try (ResultSet resultSet = statement.executeQuery()) {
-				while (resultSet.next())
-					entites.add(readResultSet(resultSet, graph));
-			}
+			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, graph), false);
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to list entities", e);
 		}
-
-		return entites;
 
 	}
 
@@ -278,7 +261,7 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 			throw new FieldUnavailableException(missingFields);
 	}
 
-	protected C readResultSet(ResultSet resultSet, FieldGraph<F> graph) throws SQLException {
+	protected C resolveResultSet(ResultSet resultSet, FieldGraph<F> graph) throws SQLException {
 		C entity = instance();
 		readResultSet(entity, resultSet, graph);
 		return entity;
