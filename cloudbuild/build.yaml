@@ -1,0 +1,8 @@
+steps:
+  - name: 'eclipse-temurin:11'
+    entrypoint: './gradlew'
+    args:
+      - 'clean'
+      - 'build'
+timeout: 300s
+logsBucket: gs://parknav-build-repo/cloudbuild-logs
