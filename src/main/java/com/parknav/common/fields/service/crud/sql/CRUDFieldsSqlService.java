@@ -178,8 +178,9 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 		if (selector != null)
 			selectStatement.addWhereTerms(getSelectorWhereTerm(selector));
 
-		try (PreparedStatement statement = selectStatement.build(getConnection())) {
-			// TODO NOTE: don't put statement inside try-with-resources since it's needed for streaming results
+		try {
+			// NOTE: don't put statement inside try-with-resources since it's needed for streaming results
+			PreparedStatement statement = selectStatement.build(getConnection());
 			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, FieldGraph.of(fields)), false);
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to list all values for fields " + fields, e);
@@ -225,8 +226,9 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 
 	protected Stream<C> doQuery(SelectStatement select, FieldGraph<F> graph) {
 
-		try (PreparedStatement statement = select.build(getConnection())) {
-			// TODO NOTE: don't put statement inside try-with-resources since it's needed for streaming results
+		try {
+			// NOTE: don't put statement inside try-with-resources since it's needed for streaming results
+			PreparedStatement statement = select.build(getConnection());
 			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, graph), false);
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to list entities", e);
