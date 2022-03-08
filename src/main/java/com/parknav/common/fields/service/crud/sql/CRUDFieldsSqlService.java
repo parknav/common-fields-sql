@@ -181,7 +181,8 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 		try {
 			// NOTE: don't put statement inside try-with-resources since it's needed for streaming results
 			PreparedStatement statement = selectStatement.build(getConnection());
-			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, FieldGraph.of(fields)), false);
+			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, FieldGraph.of(fields)), false)
+				.peek(entity -> entity.setId(null));	// #getDQLColumns probably added id and #readResultSet read it, but it's meaningless
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to list all values for fields " + fields, e);
 		}
