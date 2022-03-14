@@ -246,6 +246,17 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 	protected abstract void readResultSet(C entity, ResultSet resultSet, FieldGraph<F> graph) throws SQLException;
 
 	/**
+	 * Returns {@link Connection}, throwing {@link RuntimeException} instead of {@link SQLException} in case of error.
+	 */
+	protected Connection getConnectionUnsafe() {
+		try {
+			return getConnection();
+		} catch (SQLException e) {
+			throw new RuntimeException("Unable to retrieve database connection", e);
+		}
+	}
+
+	/**
 	 * Returns concatenated DQL columns for given fields for inclusion into hand-written SQL statements.
 	 *
 	 * @param fields fields describing columns
