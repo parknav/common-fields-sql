@@ -32,6 +32,8 @@ import java.util.stream.StreamSupport;
 
 public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>, F extends Enum<F> & FieldEnum, S> implements CRUDFieldsService<I, C, F, S> {
 
+	public static final int DefaultQueryFetchSize = 100;
+
 	public CRUDFieldsSqlService(String tableName, Set<F> mandatoryFields, Set<F> modifiableFields) {
 		this.tableName = tableName;
 		this.mandatoryFields = mandatoryFields;
@@ -215,6 +217,9 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 
 	}
 
+	public int getQueryFetchSize() { return queryFetchSize; }
+	public void setQueryFetchSize(int queryFetchSize) { this.queryFetchSize = queryFetchSize; }
+
 	protected SelectStatement buildQueryStatement(S selector, FieldGraph<F> graph) {
 		return buildQueryStatement(selector, graph, SelectStatement::new);
 	}
@@ -230,6 +235,7 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 		try {
 			// NOTE: don't put statement inside try-with-resources since it's needed for streaming results
 			PreparedStatement statement = select.build(getConnection());
+			statement.setFetchSize(queryFetchSize);
 			return StreamSupport.stream(new FieldsStatementSpliterator<>(statement, this::resolveResultSet, graph), false);
 		} catch (SQLException e) {
 			throw new CRUDException("Unable to list entities", e);
@@ -292,5 +298,7 @@ public abstract class CRUDFieldsSqlService<I, C extends HasEntityFields<I, C, F>
 	private final String tableName;
 	private final Set<F> mandatoryFields;
 	private final Set<F> modifiableFields;
+
+	private int queryFetchSize = DefaultQueryFetchSize;
 
 }
